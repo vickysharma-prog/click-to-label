@@ -1,0 +1,8 @@
+# Generated labelling pages: each embeds its image, so they are large and
+# rebuildable at any time with build.py.
+pages/
+examples/pages/
+
+__pycache__/
+*.pyc
+.DS_Store

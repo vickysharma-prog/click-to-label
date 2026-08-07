@@ -1,0 +1,3 @@
+# build.py and labeller.html need nothing beyond the standard library.
+# score.py needs numpy.
+numpy>=1.21
