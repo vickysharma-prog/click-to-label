@@ -91,6 +91,8 @@ def main() -> None:
     ap.add_argument("--out", default="pages", help="output folder (default: pages)")
     ap.add_argument("--classes", type=Path, help="JSON list of class names or objects")
     ap.add_argument("--seeds", type=Path, help="CSV of image,x,y[,class] to pre-fill")
+    ap.add_argument("--blind", type=int, default=0, metavar="N",
+                    help="leave N images unseeded as a control on seeding bias")
     ap.add_argument("--tile", type=int, default=220,
                     help="sweep-grid tile size in image pixels (default: 220)")
     args = ap.parse_args()
@@ -107,13 +109,24 @@ def main() -> None:
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
+    # Control images, spread through the set rather than taken from one end so
+    # they are not all the same kind of scene. Someone shown a detector's output
+    # tends to confirm it rather than hunt for what it missed, and comparing
+    # points-per-image on these against the seeded ones is what shows whether
+    # that happened.
+    blind = set()
+    if args.blind > 0 and seeds:
+        n = min(args.blind, len(files))
+        blind = {files[round(i * (len(files) - 1) / max(n - 1, 1))].name
+                 for i in range(n)} if n > 1 else {files[len(files) // 2].name}
+
     pages = [f.stem + ".html" for f in files]
     for i, f in enumerate(files):
         data = {
             "image_name": f.name,
             "image": data_uri(f),
             "classes": classes,
-            "seeds": seeds.get(f.name, []),
+            "seeds": [] if f.name in blind else seeds.get(f.name, []),
             "tile": args.tile,
             "prev": pages[i - 1] if i else None,
             "next": pages[i + 1] if i + 1 < len(pages) else None,
@@ -121,7 +134,8 @@ def main() -> None:
         page = (template.replace("__DATA__", json.dumps(data))
                         .replace("__TITLE__", f.name))
         (out / pages[i]).write_text(page, encoding="utf-8")
-        print(f"  {f.name:40s} {len(data['seeds']):5d} seeds")
+        print(f"  {f.name:40s} {len(data['seeds']):5d} seeds"
+              f"{'   [blind control]' if f.name in blind else ''}")
 
     rows = "\n".join(
         f'<li><a href="{p}">{f.name}</a> '
